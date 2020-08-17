@@ -18,6 +18,8 @@ import org.springframework.web.bind.annotation.RestController;
 
 import br.com.api.tasks.exception.NotFoundException;
 import br.com.api.tasks.model.Task;
+import br.com.api.tasks.model.TaskList;
+import br.com.api.tasks.repository.TaskListRepository;
 import br.com.api.tasks.repository.TaskRepository;
 
 @RestController
@@ -26,6 +28,8 @@ public class TaskController {
  
     @Autowired
     private TaskRepository taskRepository;
+    @Autowired
+    private TaskListRepository taskListRepository;
     
     @GetMapping("/task/{id}")
     public ResponseEntity<Task> getTaskById(
@@ -35,9 +39,17 @@ public class TaskController {
         return ResponseEntity.ok().body(task);
     }
 
-    @PostMapping("/task")
-    public Task createTask(@Valid @RequestBody Task task) {
-        return taskRepository.save(task);
+    @PostMapping("/task/{id}")
+    public Task createTask(
+    	@PathVariable(value = "id") Long taskListId,
+    	@Valid @RequestBody Task task) throws NotFoundException {
+
+		TaskList taskList = taskListRepository.findById(taskListId)
+				.orElseThrow(() -> new NotFoundException("Task list not found on :: "+ taskListId));
+ 
+    	task.setFinished(false);
+        task.setTasklist(taskList);
+    	return taskRepository.save(task);
     }
     
     @PutMapping("/task/{id}")
@@ -46,11 +58,14 @@ public class TaskController {
     @Valid @RequestBody Task taskDetails) throws NotFoundException {
          Task task = taskRepository.findById(taskId)
           .orElseThrow(() -> new NotFoundException("Task not found on :: "+ taskId));
-  
-        task.setDescription(taskDetails.getDescription());
-        task.setFinished(taskDetails.isFinished());
-        final Task updatedTask = taskRepository.save(task);
-        return ResponseEntity.ok(updatedTask);
+         if(!taskDetails.getDescription().isEmpty()) {
+             task.setDescription(taskDetails.getDescription());
+         }
+         if(taskDetails.isFinished()!=null) {
+        	 task.setFinished(taskDetails.isFinished());
+         }
+         final Task updatedTask = taskRepository.save(task);
+         return ResponseEntity.ok(updatedTask);
     }
 
     @DeleteMapping("/task/{id}")
